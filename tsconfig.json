@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+      "target": "es2015",
+      "module": "commonjs",
+      "outDir": "./dist",
+      "strict": true,
+      "esModuleInterop": true,
+    },
+    "include": [
+      "index.ts", 
+      "openai/**/*.ts", 
+      "routes/**/*.ts",
+      "utils/**/*.ts",
+      "services/**/*.ts",
+      "models/**/*.ts",
+      "docs/**/*.ts"
+    ]
+  }
+  
