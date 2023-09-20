@@ -1,5 +1,5 @@
-import { chat } from './chatgpt';
-import { getAll, getAllChatHistoryForUser, getById, save, update } from '../services/mongoDb';
+import { chat, generateEmbedding } from './chatgpt';
+import { getAll, getAllChatHistoryForUser, getById, save, searchEmbeddings, update } from '../services/mongoDb';
 import { authenticateJWT } from '../utils/middleware';
 import { ObjectId } from 'mongodb';
 import { readFile } from '../utils/fileFunc';
@@ -17,21 +17,82 @@ function generateConversationName(messages : any) {
   }
 }
 
+// Generate standard question
+async function generateStandardQuestion(data:any, new_qestion: string) {
+  try {
+    console.log("New Question: " + new_qestion)
+      // Extract relevant context from the chat history
+    const userMessages = data.messages.filter((message: { role: string; }) => message.role === 'user');
+    const lastUserMessage = userMessages[userMessages.length - 1];
+    const context = lastUserMessage.content;
+
+    // Create a standard question based on the context
+    // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
+    const standardQuestion = `What is the standard question based on the "${context}"?`;
+
+    // Now you can use 'standardQuestion' along with the new question
+    const newQuestion = 'What are the typical benefits for permanent employees?';
+    const completePrompt = `${standardQuestion} ${new_qestion}`;
+
+    const params = {
+      model: process.env.OPENAI_MODEL,
+      messages: [{
+        role: 'user',
+        content: completePrompt
+      }],
+      userId: data.user
+    }
+
+    // console.log("params:")
+    console.log(params)
+
+    // Use the OpenAI API to generate a response to the complete prompt
+    const response = await chat(params);
+
+    // console.log("Response is " + response.message)
+
+    // Parse the generated response to extract the new question
+    if (response && response.message) {
+      return response.message;
+    } else {
+      console.log("Error")
+    }  
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 // create new chat
 export const create =async (params:any) => { 
   const policy = params.policy;
+
+  // Get the user details from the Mongodb
+  const userIdObject = new ObjectId(params.userId);
+  const userData = await getById(process.env.USERS_TABLE, { _id : userIdObject })
+
+  // console.log(userData);
+
+  const messages = [
+    { role: 'system', content: 'You are a helpful assistant.'},
+    { role: 'user', content: 'I am ' + userData.firstName + '!'}
+  ]
+
   let data: any = {
     model: process.env.OPENAI_MODEL,
     userId: params.userId,
-    messages: params.messages
+    messages: messages
   }  
-
+  // console.log("Data Created")
   console.log(data)
+
   // Generate the first chat
   const result = await chat(data);
 
+  // console.log("chat response recieved.")
+
   // Create mongodb record
   const lastMessageIndex = data.messages.length - 1;
+
   if (lastMessageIndex >= 0) {
     data.messages[lastMessageIndex].response = result.message;
   }
@@ -39,7 +100,7 @@ export const create =async (params:any) => {
   // Create mongodb record
   const chatData = {
     model: data.model,
-    conversationName: generateConversationName(data.messages),
+    conversationName: 'New Chat',
     messages: data.messages,
     user: data.userId,
   };
@@ -72,11 +133,11 @@ export const chatUpdate =async (data:any) => {
   try {
     // Convert chatId string to ObjectId
     const chatIdObject = new ObjectId(data.chatId);
-    console.log(data.chatId)
+    // console.log(data.chatId)
 
     // Get the chat history by chat id from the mongodb
     const chatHistory = await getById(process.env.CHAT_TABLE, { _id: chatIdObject });
-    console.log(chatHistory)
+    // console.log(chatHistory)
 
     if (!chatHistory) {
       throw new Error(`Chat history not found for chatId: ${data.chatId}`);
@@ -102,23 +163,79 @@ export const chatUpdate =async (data:any) => {
 
     // Add the new user message to chatData
     chatData.messages.push(newMs);
+    // console.log(chatData)
 
-    // Call the chat function using chatData
-    const result = await chat(chatData);
+    // Generate the statndard question
+    // const paragraph = chatHistory.messages.map((message: { content: any; response: { message: { content: string; }; }; }) => {
+    //   let content = message.content;
+    //   if (message.response && message.response.message && message.response.message.content) {
+    //     content += ' ' + message.response.message.content;
+    //   }
+    //   return content;
+    // }).join(' ');
 
-    // create the new message
-    newMs.response = result;
+    const response = await generateStandardQuestion(chatHistory, newMs.content);
+    if (response && response.content)
+    {
+      console.log("standard question" + response.content);
 
-    // Add the new message to the messages array of chatHistory
-    chatHistory.messages.push(newMs);
+      // Generate embeddings
+      const embeddingsData = await generateEmbedding(response.content);
+      // console.log(embedding);
+      
 
-    console.log(chatHistory)
+      // get the relevant document
+      const embeddingsArray = embeddingsData.data.map(embeddingItem => embeddingItem.embedding).flat();
+      const doc = await searchEmbeddings(embeddingsArray, process.env.FILE_CHUNKS)
 
-    const updateCount = await update(process.env.CHAT_TABLE, { _id: chatHistory._id }, { messages: chatHistory.messages });
+      console.log(doc[0]._id)
+      //Get the document by id
+      const relevantDoc = await getById(process.env.FILE_CHUNKS, { _id : doc[0]._id})
 
-    console.log(updateCount)
+      // Extract 'data' fields from each object in 'documentField' array
+      const dataFields = relevantDoc.documentField.map((item: { data: any; }) => item.data);
 
-    return result;
+      // Join 'data' fields into a single string
+      const relevantContent = dataFields.join(' ');
+
+      console.log(relevantContent)
+
+      // create the converstaoin (standard question + document)
+      const convData = {
+        model: process.env.OPENAI_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: relevantContent
+          }, 
+          {
+            role: 'user',
+            content: response.content
+          }
+        ]
+      }
+
+      console.log(convData)
+
+      // Call the chat function using chatData
+      const result = await chat(convData);
+
+      // create the new message
+      newMs.response = result;
+
+      // Add the new message to the messages array of chatHistory
+      chatHistory.messages.push(newMs);
+
+      console.log(chatHistory)
+
+      const updateCount = await update(process.env.CHAT_TABLE, { _id: chatHistory._id }, { messages: chatHistory.messages });
+
+      console.log(updateCount)
+
+      return result;
+    } else {
+      console.log('Error: creating data')
+    }
 
   } catch (error) {
     console.error('Error during chat update:', error);

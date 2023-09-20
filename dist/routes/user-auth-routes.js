@@ -39,10 +39,12 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 }));
 router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { username, password, email } = req.body;
+    const { firstName, lastName, username, password, email } = req.body;
     try {
         // Assuming you have a 'users' collection in your MongoDB database
         const userData = {
+            firstName,
+            lastName,
             username,
             password,
             email,

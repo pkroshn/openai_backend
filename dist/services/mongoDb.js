@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllChatHistoryForUser = exports.userAuth = exports.getAll = exports.getById = exports.del = exports.update = exports.save = void 0;
+exports.searchEmbeddings = exports.saveChunks = exports.getAllChatHistoryForUser = exports.userAuth = exports.getAll = exports.getById = exports.del = exports.update = exports.save = void 0;
 // const { MongoClient } = require('mongodb');
 const mongodb_1 = require("mongodb");
 require("dotenv/config");
@@ -137,3 +137,88 @@ const getAllChatHistoryForUser = (collectionName, userId) => __awaiter(void 0, v
     }
 });
 exports.getAllChatHistoryForUser = getAllChatHistoryForUser;
+// Save file chunks
+const saveChunks = (data, collectionName) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const db = yield connectToDB(); // Wait for the connection to be established
+        const collection = db.collection(collectionName);
+        const result = yield collection.insertOne({ documentField: data }); // Wrap data in an object
+        console.log('Data inserted successfully:', result.insertedId);
+        return result.insertedId;
+    }
+    catch (error) {
+        console.error('Error inserting data:', error);
+        throw error;
+    }
+});
+exports.saveChunks = saveChunks;
+// Define your search function
+const searchEmbeddings = (userQueryEmbedding, collectionName) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Connect to the MongoDB database
+        const db = yield connectToDB();
+        // Calculate the square of each value in userQueryEmbedding
+        const querySquared = userQueryEmbedding.map(queryValue => ({
+            $pow: [queryValue, 2]
+        }));
+        // Calculate the sum of squared values in userQueryEmbedding
+        const querySquaredSum = {
+            $sum: querySquared
+        };
+        // Calculate the square root of the sum of squared values in userQueryEmbedding
+        const userQueryEmbeddingSqrt = {
+            $sqrt: querySquaredSum
+        };
+        // Define your aggregation pipeline to calculate similarity scores
+        const pipeline = [
+            {
+                $project: {
+                    _id: 1,
+                    embedding: 1, // The field where embeddings are stored
+                },
+            },
+            {
+                $addFields: {
+                    similarityScore: {
+                        $subtract: [
+                            1,
+                            {
+                                $divide: [
+                                    {
+                                        $sum: userQueryEmbedding.map((queryValue, index) => ({
+                                            $multiply: [
+                                                queryValue,
+                                                { $arrayElemAt: ["$embedding", index] }
+                                            ]
+                                        }))
+                                    },
+                                    {
+                                        $multiply: [
+                                            { $sqrt: { $sum: querySquared } },
+                                            { $sqrt: querySquaredSum }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                },
+            },
+            {
+                $sort: {
+                    similarityScore: -1, // Sort by similarity in descending order
+                },
+            },
+        ];
+        // Execute the aggregation pipeline
+        const relevantDocuments = yield db.collection(collectionName).aggregate(pipeline).toArray();
+        console.log(relevantDocuments);
+        // Return the relevant documents
+        return relevantDocuments;
+    }
+    catch (error) {
+        console.error('Error searching embeddings:', error);
+        throw error;
+    }
+});
+exports.searchEmbeddings = searchEmbeddings;

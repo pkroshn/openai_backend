@@ -58,7 +58,7 @@ router.put('/chat/:chatId', authenticateJWT,async (req:any, res: any) => {
   const data = req.body;
   data.chatId = chatId;
 
-  console.log(data.chatId)
+  // console.log(data.chatId)
 
   try {
     const result = await chatUpdate(data);
@@ -106,17 +106,19 @@ router.post('/upload/', authenticateJWT, async (req: any, res: any) => {
         const fileData = {
           doc_name: doc_name,
           file_name: originalname,
-          file_location: './doc/' + filename // Assuming filename is the path to the stored file
+          file_location: './docs/' + filename, // Assuming filename is the path to the stored file
+          embeddings: null
         };
 
         // Save file metadata to MongoDB
-        await save(fileData, process.env.FILE_METADATA); // Replace with your collection name
-        console.log("file uploaded and file meta data saved!")
+        const filemeta = await save(fileData, process.env.FILE_METADATA); // Replace with your collection name
+        // console.log("file uploaded and file meta data saved!")
 
         // Save file content in the system
-        await saveFileContent(fileData.file_location);
+        const emb = await saveFileContent(fileData);
 
-        res.json({ message: 'File uploaded and metadata saved.' });
+        res.json({ message: 'File uploaded, embedding generated and saved successfully.' });
+        
       } catch (error) {
         console.error('Error saving file metadata:', error);
         res.status(500).json({ message: 'File upload failed.' });

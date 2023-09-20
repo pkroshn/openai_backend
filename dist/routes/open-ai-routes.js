@@ -67,7 +67,7 @@ router.put('/chat/:chatId', middleware_1.authenticateJWT, (req, res) => __awaite
     const chatId = req.params.chatId;
     const data = req.body;
     data.chatId = chatId;
-    console.log(data.chatId);
+    // console.log(data.chatId)
     try {
         const result = yield (0, chat_gpt_func_1.chatUpdate)(data);
         res.json({ response: result });
@@ -113,14 +113,15 @@ router.post('/upload/', middleware_1.authenticateJWT, (req, res) => __awaiter(vo
                 const fileData = {
                     doc_name: doc_name,
                     file_name: originalname,
-                    file_location: './doc/' + filename // Assuming filename is the path to the stored file
+                    file_location: './docs/' + filename,
+                    embeddings: null
                 };
                 // Save file metadata to MongoDB
-                yield (0, mongoDb_1.save)(fileData, process.env.FILE_METADATA); // Replace with your collection name
-                console.log("file uploaded and file meta data saved!");
+                const filemeta = yield (0, mongoDb_1.save)(fileData, process.env.FILE_METADATA); // Replace with your collection name
+                // console.log("file uploaded and file meta data saved!")
                 // Save file content in the system
-                yield (0, fileFunc_1.saveFileContent)(fileData.file_location);
-                res.json({ message: 'File uploaded and metadata saved.' });
+                const emb = yield (0, fileFunc_1.saveFileContent)(fileData);
+                res.json({ message: 'File uploaded, embedding generated and saved successfully.' });
             }
             catch (error) {
                 console.error('Error saving file metadata:', error);

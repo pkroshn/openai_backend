@@ -27,8 +27,8 @@ export const chat =async (params:any) => {
         const response = await openai.createChatCompletion({
           model: params.model,
           messages: params.messages,
-          temperature: 0.7,
-          max_tokens: 3000,
+          temperature: 0.5,
+          max_tokens: 150,
           user: params.userId,
         });
     
@@ -48,20 +48,33 @@ export const chat =async (params:any) => {
       }
 }
 
-export const generateEmbedding = async (params: any) => {
-  const request: CreateEmbeddingRequest = {
-    model: 'davinci-codex',
-    input: params.searchText,
-    user: params.userId,
-  };
+
+export const generateEmbedding = async (textChunk: string) => {
+  // console.log("connected to embedding function")
 
   try {
-    const response = await openai.createEmbedding(request);
-    // return response.data[0].answers[0].text;
-    console.log(response)
+    const response = await openai.createEmbedding({
+      model: 'text-embedding-ada-002',
+      input: textChunk,
+      user: 'user 1'
+    });
+
+    // console.log("Response Generated")
+    // console.log(response.data)
+    // console.log("Response Ends Here")
+
+    if (
+      response.data
+    ) {
+      // console.log("Embedding exists")
+      // Extract the generated embedding from the response
+      const embedding = response.data;
+      return embedding;
+    } else {
+      throw new Error('Invalid response from OpenAI API');
+    }
   } catch (error) {
-    throw error;
+    console.error('Error generating embedding:', error);
+    throw new Error('Failed to generate embedding');
   }
 };
-
-

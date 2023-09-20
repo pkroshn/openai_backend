@@ -24,7 +24,7 @@ const configureUpload = () => __awaiter(void 0, void 0, void 0, function* () {
     // Perform any async operations here before configuring multer
     // Set up storage for uploaded files
     const storage = multer_1.default.diskStorage({
-        destination: './doc/',
+        destination: './docs/',
         filename: (req, file, cb) => {
             cb(null, file.fieldname + '-' + Date.now() + path_1.default.extname(file.originalname));
         }
@@ -57,31 +57,48 @@ const readFile = (filePath) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.readFile = readFile;
-// Save file content
-const saveFileContent = (filePath) => __awaiter(void 0, void 0, void 0, function* () {
+const saveFileContent = (params) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // Read the file content
-        const fileContent = yield (0, exports.readFile)(filePath);
-        // Generate the chunks
-        const chunkSize = 1000; // Set your desired chunk size
+        const fileContent = yield (0, exports.readFile)(params.file_location);
+        // Split the content into words
+        const words = fileContent.split(/\s+/); // Split by whitespace characters
+        // Generate the chunks with approximately 100 words each
+        const chunkSizeWords = 1000;
         const chunks = [];
-        for (let i = 0; i < fileContent.length; i += chunkSize) {
-            chunks.push(fileContent.slice(i, i + chunkSize));
+        let currentChunk = [];
+        for (const word of words) {
+            currentChunk.push(word);
+            if (currentChunk.length >= chunkSizeWords) {
+                chunks.push(currentChunk.join(' '));
+                currentChunk = [];
+            }
         }
-        // Save to db using your existing save function
+        // If there are remaining words, add them as the last chunk
+        if (currentChunk.length > 0) {
+            chunks.push(currentChunk.join(' '));
+        }
+        // Save to the database with generated UUIDs
         const collectionName = process.env.FILE_CHUNKS; // Set your collection name
-        const chunkDocuments = chunks.map((chunk, index) => ({
-            chunk_id: index + 1,
-            text: chunk,
-        }));
-        yield (0, mongoDb_1.save)(chunkDocuments, collectionName);
-        // Generate Embeddings from openAI
-        // Assuming you have the OpenAI logic to generate embeddings here
-        const query = 'Your search query...';
-        const queryEmbedding = yield (0, chatgpt_1.generateEmbedding)(query);
-        // Update MongoDB with query embedding
-        yield (0, mongoDb_1.save)({ query_embedding: queryEmbedding }, collectionName);
+        const chunkDocuments = [];
+        for (let index = 0; index < chunks.length; index++) {
+            const chunk = chunks[index];
+            // Generate an embedding for the chunk using OpenAI's GPT-3
+            const embedding = yield (0, chatgpt_1.generateEmbedding)(chunk);
+            chunkDocuments.push({
+                filename: params.doc_name,
+                position: index,
+                data: chunk,
+                embedding: embedding, // Store the embedding in the document
+            });
+        }
+        console.log(chunkDocuments);
+        const result = yield (0, mongoDb_1.saveChunks)(chunkDocuments, collectionName);
+        console.log("Chunks saved!");
+        // Continue with other processing or logic as needed
+        console.log("");
         console.log('File content saved and processed.');
+        return result;
     }
     catch (error) {
         console.error('Error:', error);

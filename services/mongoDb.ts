@@ -125,4 +125,91 @@ export const getAllChatHistoryForUser = async (collectionName: any, userId: any)
   }
 };
 
+// Save file chunks
+export const saveChunks = async (data: any, collectionName: any) => {
+  try {
+    const db = await connectToDB(); // Wait for the connection to be established
+    const collection = db.collection(collectionName);
+    const result = await collection.insertOne({ documentField: data }); // Wrap data in an object
+    console.log('Data inserted successfully:', result.insertedId);
+    return result.insertedId;
+  } catch (error) {
+    console.error('Error inserting data:', error);
+    throw error;
+  }
+}
+
+// Define your search function
+export const searchEmbeddings = async (userQueryEmbedding: number[], collectionName: any) => {
+  try {
+    // Connect to the MongoDB database
+    const db = await connectToDB();
+
+    // Calculate the square of each value in userQueryEmbedding
+    const querySquared = userQueryEmbedding.map(queryValue => ({
+      $pow: [queryValue, 2]
+    }));
+
+    // Calculate the sum of squared values in userQueryEmbedding
+    const querySquaredSum = {
+      $sum: querySquared
+    };
+
+    // Calculate the square root of the sum of squared values in userQueryEmbedding
+    const userQueryEmbeddingSqrt = {
+      $sqrt: querySquaredSum
+    };
+
+    // Define your aggregation pipeline to calculate similarity scores
+    const pipeline = [
+      {
+        $project: {
+          _id: 1,
+          embedding: 1, // The field where embeddings are stored
+        },
+      },
+      {
+        $addFields: {
+          similarityScore: {
+            $subtract: [
+              1,
+              {
+                $divide: [
+                  {
+                    $sum: userQueryEmbedding.map((queryValue, index) => ({
+                      $multiply: [
+                        queryValue,
+                        { $arrayElemAt: ["$embedding", index] }
+                      ]
+                    }))
+                  },
+                  {
+                    $multiply: [
+                      { $sqrt: { $sum: querySquared } },
+                      { $sqrt: querySquaredSum }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+        },
+      },
+      {
+        $sort: {
+          similarityScore: -1, // Sort by similarity in descending order
+        },
+      },
+    ];
+
+    // Execute the aggregation pipeline
+    const relevantDocuments = await db.collection(collectionName).aggregate(pipeline).toArray();
+    console.log(relevantDocuments)
+    // Return the relevant documents
+    return relevantDocuments;
+  } catch (error) {
+    console.error('Error searching embeddings:', error);
+    throw error;
+  }
+};
   
