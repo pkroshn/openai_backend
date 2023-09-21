@@ -28,7 +28,7 @@ async function generateStandardQuestion(data:any, new_qestion: string) {
 
     // Create a standard question based on the context
     // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
-    const standardQuestion = `What is the standard question based on the "${context}"?`;
+    const standardQuestion = `Can you generate the standard question based on the "${context}"?`;
 
     // Now you can use 'standardQuestion' along with the new question
     const newQuestion = 'What are the typical benefits for permanent employees?';
@@ -205,13 +205,13 @@ export const chatUpdate =async (data:any) => {
         model: process.env.OPENAI_MODEL,
         messages: [
           {
-            role: 'system',
-            content: relevantContent
-          }, 
-          {
             role: 'user',
-            content: response.content
-          }
+            content: relevantContent + ' ' + response.content
+          }, 
+          // {
+          //   role: 'user',
+          //   content: response.content
+          // }
         ]
       }
 
@@ -219,6 +219,7 @@ export const chatUpdate =async (data:any) => {
 
       // Call the chat function using chatData
       const result = await chat(convData);
+      console.log(result)
 
       // create the new message
       newMs.response = result;

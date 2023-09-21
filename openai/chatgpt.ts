@@ -27,8 +27,8 @@ export const chat =async (params:any) => {
         const response = await openai.createChatCompletion({
           model: params.model,
           messages: params.messages,
-          temperature: 0.5,
-          max_tokens: 150,
+          temperature: 0.8,
+          max_tokens: 3000,
           user: params.userId,
         });
     

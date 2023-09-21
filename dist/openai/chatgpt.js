@@ -35,8 +35,8 @@ const chat = (params) => __awaiter(void 0, void 0, void 0, function* () {
         const response = yield openai.createChatCompletion({
             model: params.model,
             messages: params.messages,
-            temperature: 0.5,
-            max_tokens: 150,
+            temperature: 0.8,
+            max_tokens: 3000,
             user: params.userId,
         });
         if (response.data &&

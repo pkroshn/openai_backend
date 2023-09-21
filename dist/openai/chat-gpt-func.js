@@ -47,7 +47,7 @@ function generateStandardQuestion(data, new_qestion) {
             const context = lastUserMessage.content;
             // Create a standard question based on the context
             // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
-            const standardQuestion = `What is the standard question based on the "${context}"?`;
+            const standardQuestion = `Can you generate the standard question based on the "${context}"?`;
             // Now you can use 'standardQuestion' along with the new question
             const newQuestion = 'What are the typical benefits for permanent employees?';
             const completePrompt = `${standardQuestion} ${new_qestion}`;
@@ -183,18 +183,19 @@ const chatUpdate = (data) => __awaiter(void 0, void 0, void 0, function* () {
                 model: process.env.OPENAI_MODEL,
                 messages: [
                     {
-                        role: 'system',
-                        content: relevantContent
-                    },
-                    {
                         role: 'user',
-                        content: response.content
-                    }
+                        content: relevantContent + ' ' + response.content
+                    },
+                    // {
+                    //   role: 'user',
+                    //   content: response.content
+                    // }
                 ]
             };
             console.log(convData);
             // Call the chat function using chatData
             const result = yield (0, chatgpt_1.chat)(convData);
+            console.log(result);
             // create the new message
             newMs.response = result;
             // Add the new message to the messages array of chatHistory
