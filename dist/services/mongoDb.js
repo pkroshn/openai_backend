@@ -153,7 +153,7 @@ const saveChunks = (data, collectionName) => __awaiter(void 0, void 0, void 0, f
 });
 exports.saveChunks = saveChunks;
 // Define your search function
-const searchEmbeddings = (userQueryEmbedding, collectionName) => __awaiter(void 0, void 0, void 0, function* () {
+const searchEmbeddings = (userQueryEmbedding, collectionName, limit = 1, similarityThreshold = 0.9) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // Connect to the MongoDB database
         const db = yield connectToDB();
@@ -205,10 +205,18 @@ const searchEmbeddings = (userQueryEmbedding, collectionName) => __awaiter(void 
                 },
             },
             {
+                $match: {
+                    similarityScore: { $gte: similarityThreshold }
+                }
+            },
+            {
                 $sort: {
                     similarityScore: -1, // Sort by similarity in descending order
                 },
             },
+            {
+                $limit: limit // Limit the number of documents returned
+            }
         ];
         // Execute the aggregation pipeline
         const relevantDocuments = yield db.collection(collectionName).aggregate(pipeline).toArray();

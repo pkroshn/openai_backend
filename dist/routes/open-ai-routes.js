@@ -64,9 +64,11 @@ router.post('/chat', middleware_1.authenticateJWT, (req, res) => __awaiter(void 
     }
 }));
 router.put('/chat/:chatId', middleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.user.sub;
     const chatId = req.params.chatId;
     const data = req.body;
     data.chatId = chatId;
+    data.userId = userId;
     // console.log(data.chatId)
     try {
         const result = yield (0, chat_gpt_func_1.chatUpdate)(data);
@@ -110,17 +112,20 @@ router.post('/upload/', middleware_1.authenticateJWT, (req, res) => __awaiter(vo
                 const { originalname, filename } = req.file;
                 const { doc_name } = req.body;
                 // Prepare the data to be saved
-                const fileData = {
+                let fileData = {
                     doc_name: doc_name,
                     file_name: originalname,
                     file_location: './docs/' + filename,
-                    embeddings: null
+                    embeddings: false,
+                    chunk_id: null
                 };
+                // Save file content in the system
+                const emb = yield (0, fileFunc_1.saveFileContent)(fileData);
+                fileData.embeddings = true;
+                fileData.chunk_id = emb;
                 // Save file metadata to MongoDB
                 const filemeta = yield (0, mongoDb_1.save)(fileData, process.env.FILE_METADATA); // Replace with your collection name
                 // console.log("file uploaded and file meta data saved!")
-                // Save file content in the system
-                const emb = yield (0, fileFunc_1.saveFileContent)(fileData);
                 res.json({ message: 'File uploaded, embedding generated and saved successfully.' });
             }
             catch (error) {
@@ -129,6 +134,16 @@ router.post('/upload/', middleware_1.authenticateJWT, (req, res) => __awaiter(vo
             }
         }
     }));
+}));
+router.get('/uploads/', middleware_1.authenticateJWT, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.user.sub;
+    try {
+        const result = yield (0, fileFunc_1.getListOfAllUploadedFiles)();
+        res.json({ response: result });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Failed to retrieve file list' });
+    }
 }));
 // Export the router object
 exports.default = router;

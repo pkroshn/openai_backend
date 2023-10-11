@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import pdf from 'pdf-parse';
 import Docxtemplater from 'docxtemplater';
-import { save, saveChunks } from '../services/mongoDb';
+import { getAll, save, saveChunks } from '../services/mongoDb';
 import { generateEmbedding } from '../openai/chatgpt';
 
 export const configureUpload = async () => {
@@ -47,6 +47,7 @@ export const readFile =async (filePath:any) => {
   }
 }
 
+//Save the file contents to the database
 export const saveFileContent = async (params: any) => {
   try {
     // Read the file content
@@ -109,6 +110,17 @@ export const saveFileContent = async (params: any) => {
     console.error('Error:', error);
   }
 };
+
+// Get all the uploaded file list
+export const getListOfAllUploadedFiles = async () => {
+  try {
+    const data = await getAll(process.env.FILE_METADATA);
+    return { message: data }
+  } catch (error) {
+    console.error('Error during getting stored files list.. ')
+    throw error;
+  }
+}
 
 
 

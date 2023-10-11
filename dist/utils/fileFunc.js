@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveFileContent = exports.readFile = exports.configureUpload = void 0;
+exports.getListOfAllUploadedFiles = exports.saveFileContent = exports.readFile = exports.configureUpload = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
@@ -57,6 +57,7 @@ const readFile = (filePath) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.readFile = readFile;
+//Save the file contents to the database
 const saveFileContent = (params) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // Read the file content
@@ -105,3 +106,15 @@ const saveFileContent = (params) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.saveFileContent = saveFileContent;
+// Get all the uploaded file list
+const getListOfAllUploadedFiles = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const data = yield (0, mongoDb_1.getAll)(process.env.FILE_METADATA);
+        return { message: data };
+    }
+    catch (error) {
+        console.error('Error during getting stored files list.. ');
+        throw error;
+    }
+});
+exports.getListOfAllUploadedFiles = getListOfAllUploadedFiles;

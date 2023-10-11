@@ -31,7 +31,7 @@ router.post('/login', async (req: any, res: any) => {
 });
 
 router.post('/register', async (req : any, res : any) => {
-  const { firstName, lastName, username, password, email } = req.body;
+  const { firstName, lastName, username, password, empstatus, empdate, email } = req.body;
   
   try {
     // Assuming you have a 'users' collection in your MongoDB database
@@ -40,6 +40,8 @@ router.post('/register', async (req : any, res : any) => {
       lastName,
       username,
       password, // Note: This should be a hashed password for better security
+      empstatus,
+      empdate,
       email,
       // Any other user information you want to store
     };

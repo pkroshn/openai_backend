@@ -20,19 +20,26 @@ function generateConversationName(messages : any) {
 // Generate standard question
 async function generateStandardQuestion(data:any, new_qestion: string) {
   try {
-    console.log("New Question: " + new_qestion)
+    // console.log("New Question: " + new_qestion)
       // Extract relevant context from the chat history
     const userMessages = data.messages.filter((message: { role: string; }) => message.role === 'user');
-    const lastUserMessage = userMessages[userMessages.length - 1];
-    const context = lastUserMessage.content;
+    
+    // let completePrompt;
+    // if (userMessages.length > 2) {
+    //   const lastUserMessage = userMessages[userMessages.length - 1];
+    //   const context = lastUserMessage.content;
 
-    // Create a standard question based on the context
-    // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
-    const standardQuestion = `Can you generate the standard question based on the "${context}"?`;
+    //   // Create a standard question based on the context
+    //   // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
+    //   completePrompt = `Can you generate the suitable standard question based on the "${context}" and "${new_qestion}"?`;
 
-    // Now you can use 'standardQuestion' along with the new question
-    const newQuestion = 'What are the typical benefits for permanent employees?';
-    const completePrompt = `${standardQuestion} ${new_qestion}`;
+    //   // Now you can use 'standardQuestion' along with the new question
+    //   // completePrompt = `${standardQuestion} ${new_qestion}`;
+    // } else {
+    //   completePrompt = `Can you generate the suitable standard question based on the "${new_qestion}"?`;
+    // }
+
+    const completePrompt = `Can you generate the suitable standard question based on the "${new_qestion}"?`;
 
     const params = {
       model: process.env.OPENAI_MODEL,
@@ -62,19 +69,27 @@ async function generateStandardQuestion(data:any, new_qestion: string) {
   }
 }
 
+// Retrive user sdata
+async function getUserDetails(userId:any) {
+   // Get the user details from the Mongodb
+   const userIdObject = new ObjectId(userId);
+   const data = await getById(process.env.USERS_TABLE, { _id : userIdObject })
+
+   return data;
+}
+
 // create new chat
 export const create =async (params:any) => { 
   const policy = params.policy;
 
-  // Get the user details from the Mongodb
-  const userIdObject = new ObjectId(params.userId);
-  const userData = await getById(process.env.USERS_TABLE, { _id : userIdObject })
+  //Get the user details from the mongodb
+  const userData = await getUserDetails(params.userId)  
 
   // console.log(userData);
 
   const messages = [
     { role: 'system', content: 'You are a helpful assistant.'},
-    { role: 'user', content: 'I am ' + userData.firstName + '!'}
+    { role: 'user', content: `I am ${userData.firstName}. I am ${userData.empstatus} employee. I have joined on ${userData.empdate}.`}
   ]
 
   let data: any = {
@@ -200,18 +215,25 @@ export const chatUpdate =async (data:any) => {
 
       console.log(relevantContent)
 
+      // Get the user details
+      const userData = await getUserDetails(data.userId)
+
       // create the converstaoin (standard question + document)
       const convData = {
         model: process.env.OPENAI_MODEL,
         messages: [
           {
+            role: 'system',
+            content: relevantContent
+          },
+          {
+            role: 'system',
+            content: `I am a ${userData.empstatus} employee. employment date is ${userData.empdate}.`
+          },
+          {
             role: 'user',
-            content: relevantContent + ' ' + response.content
-          }, 
-          // {
-          //   role: 'user',
-          //   content: response.content
-          // }
+            content: response.content
+          }
         ]
       }
 

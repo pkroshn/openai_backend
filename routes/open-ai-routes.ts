@@ -2,7 +2,7 @@ import { chatUpdate, create, getAllUserChats, getOneChat } from '../openai/chat-
 import { getModels, getModel, chat } from '../openai/chatgpt';
 import { getById, save } from '../services/mongoDb';
 import { authenticateJWT } from '../utils/middleware';
-import { configureUpload, saveFileContent } from '../utils/fileFunc';
+import { configureUpload, getListOfAllUploadedFiles, saveFileContent } from '../utils/fileFunc';
 import express from 'express';
 const router = express.Router();
 
@@ -54,9 +54,11 @@ router.post('/chat',authenticateJWT, async (req:any, res: any) => {
 })
 
 router.put('/chat/:chatId', authenticateJWT,async (req:any, res: any) => {
+  const userId = req.user.sub;
   const chatId = req.params.chatId;
   const data = req.body;
   data.chatId = chatId;
+  data.userId = userId;
 
   // console.log(data.chatId)
 
@@ -103,19 +105,23 @@ router.post('/upload/', authenticateJWT, async (req: any, res: any) => {
         const { doc_name } = req.body;
 
         // Prepare the data to be saved
-        const fileData = {
+        let fileData = {
           doc_name: doc_name,
           file_name: originalname,
           file_location: './docs/' + filename, // Assuming filename is the path to the stored file
-          embeddings: null
-        };
+          embeddings: false,
+          chunk_id: null
+        };        
+
+        // Save file content in the system
+        const emb = await saveFileContent(fileData);
+
+        fileData.embeddings = true;
+        fileData.chunk_id = emb;
 
         // Save file metadata to MongoDB
         const filemeta = await save(fileData, process.env.FILE_METADATA); // Replace with your collection name
         // console.log("file uploaded and file meta data saved!")
-
-        // Save file content in the system
-        const emb = await saveFileContent(fileData);
 
         res.json({ message: 'File uploaded, embedding generated and saved successfully.' });
         
@@ -126,6 +132,16 @@ router.post('/upload/', authenticateJWT, async (req: any, res: any) => {
     }
   });
 });
+
+router.get('/uploads/', authenticateJWT, async (req:any, res:any) => {
+  const userId = req.user.sub;
+  try {
+    const result = await getListOfAllUploadedFiles();
+    res.json({response: result})
+  } catch (error) {
+    res.status(500).json({message: 'Failed to retrieve file list'})
+  }
+})
 
 // Export the router object
 export default router;

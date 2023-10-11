@@ -40,17 +40,22 @@ function generateConversationName(messages) {
 function generateStandardQuestion(data, new_qestion) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log("New Question: " + new_qestion);
+            // console.log("New Question: " + new_qestion)
             // Extract relevant context from the chat history
             const userMessages = data.messages.filter((message) => message.role === 'user');
-            const lastUserMessage = userMessages[userMessages.length - 1];
-            const context = lastUserMessage.content;
-            // Create a standard question based on the context
-            // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
-            const standardQuestion = `Can you generate the standard question based on the "${context}"?`;
-            // Now you can use 'standardQuestion' along with the new question
-            const newQuestion = 'What are the typical benefits for permanent employees?';
-            const completePrompt = `${standardQuestion} ${new_qestion}`;
+            // let completePrompt;
+            // if (userMessages.length > 2) {
+            //   const lastUserMessage = userMessages[userMessages.length - 1];
+            //   const context = lastUserMessage.content;
+            //   // Create a standard question based on the context
+            //   // const standardQuestion = `Based on your previous message "${context}", is there anything else you'd like to know?`;
+            //   completePrompt = `Can you generate the suitable standard question based on the "${context}" and "${new_qestion}"?`;
+            //   // Now you can use 'standardQuestion' along with the new question
+            //   // completePrompt = `${standardQuestion} ${new_qestion}`;
+            // } else {
+            //   completePrompt = `Can you generate the suitable standard question based on the "${new_qestion}"?`;
+            // }
+            const completePrompt = `Can you generate the suitable standard question based on the "${new_qestion}"?`;
             const params = {
                 model: process.env.OPENAI_MODEL,
                 messages: [{
@@ -77,16 +82,24 @@ function generateStandardQuestion(data, new_qestion) {
         }
     });
 }
+// Retrive user sdata
+function getUserDetails(userId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Get the user details from the Mongodb
+        const userIdObject = new mongodb_1.ObjectId(userId);
+        const data = yield (0, mongoDb_1.getById)(process.env.USERS_TABLE, { _id: userIdObject });
+        return data;
+    });
+}
 // create new chat
 const create = (params) => __awaiter(void 0, void 0, void 0, function* () {
     const policy = params.policy;
-    // Get the user details from the Mongodb
-    const userIdObject = new mongodb_1.ObjectId(params.userId);
-    const userData = yield (0, mongoDb_1.getById)(process.env.USERS_TABLE, { _id: userIdObject });
+    //Get the user details from the mongodb
+    const userData = yield getUserDetails(params.userId);
     // console.log(userData);
     const messages = [
         { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: 'I am ' + userData.firstName + '!' }
+        { role: 'user', content: `I am ${userData.firstName}. I am ${userData.empstatus} employee. I have joined on ${userData.empdate}.` }
     ];
     let data = {
         model: process.env.OPENAI_MODEL,
@@ -178,18 +191,24 @@ const chatUpdate = (data) => __awaiter(void 0, void 0, void 0, function* () {
             // Join 'data' fields into a single string
             const relevantContent = dataFields.join(' ');
             console.log(relevantContent);
+            // Get the user details
+            const userData = yield getUserDetails(data.userId);
             // create the converstaoin (standard question + document)
             const convData = {
                 model: process.env.OPENAI_MODEL,
                 messages: [
                     {
-                        role: 'user',
-                        content: relevantContent + ' ' + response.content
+                        role: 'system',
+                        content: relevantContent
                     },
-                    // {
-                    //   role: 'user',
-                    //   content: response.content
-                    // }
+                    {
+                        role: 'system',
+                        content: `I am a ${userData.empstatus} employee. employment date is ${userData.empdate}.`
+                    },
+                    {
+                        role: 'user',
+                        content: response.content
+                    }
                 ]
             };
             console.log(convData);

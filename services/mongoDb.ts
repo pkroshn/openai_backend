@@ -140,7 +140,7 @@ export const saveChunks = async (data: any, collectionName: any) => {
 }
 
 // Define your search function
-export const searchEmbeddings = async (userQueryEmbedding: number[], collectionName: any) => {
+export const searchEmbeddings = async (userQueryEmbedding: number[], collectionName: any, limit: number = 1, similarityThreshold: number = 0.9) => {
   try {
     // Connect to the MongoDB database
     const db = await connectToDB();
@@ -196,15 +196,24 @@ export const searchEmbeddings = async (userQueryEmbedding: number[], collectionN
         },
       },
       {
+        $match: {
+          similarityScore: { $gte: similarityThreshold }
+        }
+      },
+      {
         $sort: {
           similarityScore: -1, // Sort by similarity in descending order
         },
       },
+      {
+        $limit: limit // Limit the number of documents returned
+      }
     ];
 
     // Execute the aggregation pipeline
     const relevantDocuments = await db.collection(collectionName).aggregate(pipeline).toArray();
-    console.log(relevantDocuments)
+    console.log(relevantDocuments);
+
     // Return the relevant documents
     return relevantDocuments;
   } catch (error) {
@@ -212,4 +221,5 @@ export const searchEmbeddings = async (userQueryEmbedding: number[], collectionN
     throw error;
   }
 };
+
   
